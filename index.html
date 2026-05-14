@@ -1,35 +1,690 @@
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=3, user-scalable=1"
-    />
-    <title>Can you make it in the VA?</title>
-    <link rel="preconnect" href="https://use.typekit.net" crossorigin />  <link rel="stylesheet" rel="preload" as="font" href="https://use.typekit.net/.css?v=1772650865" />
-    
-    <script src="scormdriver.js" charset="utf-8"></script>
-    <script>
-      USE_LEGACY_IDENTIFIERS_FOR_2004 = true;
-      REVIEW_MODE_IS_READ_ONLY = false;
-      window.onbeforeunload = () => window.Unload();
-      const LoadContent = function () {
-        [
-          "assets/js/project.js",
-          "dist/main.chunk.js",
-          "dist/runtime-main.bundle.js",
-          "dist/vendors-main.chunk.js",
-        ].forEach((src) => {
-          script = document.createElement("script");
-          script.src = src;
-          script.charset = "utf-8";
-          script.async = false;
-          document.body.appendChild(script);
-        });
-      };
-    </script>
-  </head>
-  <body onload="Start()">
-    <div id="app" style="width: 100%; height: 100%"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Can you make it in the VA?</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --va-bg:      #C8D0CF;
+    --va-cream:   #F4F1E8;
+    --va-olive:   #2D2F1F;
+    --va-olive-2: #3D4030;
+    --va-gold:    #E6CE2F;
+    --va-gold-d:  #B8A521;
+    --va-amber:   #C97A1B;
+    --va-amber-2: #8B4F0D;
+    --va-red:     #8E2A1A;
+    --va-green:   #4A6B3A;
+    --va-text:    #1C1F1A;
+    --va-line:    rgba(45,47,31,0.18);
+  }
+  body {
+    background: var(--va-bg);
+    color: var(--va-text);
+    font-family: 'Source Serif Pro', 'PT Serif', Georgia, 'Times New Roman', serif;
+  }
+  .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .btn-primary {
+    background: var(--va-olive);
+    color: var(--va-cream);
+    border: 2px solid var(--va-olive);
+  }
+  .btn-primary:hover { background: var(--va-olive-2); }
+  .btn-gold {
+    background: var(--va-gold);
+    color: var(--va-olive);
+    border: 2px solid var(--va-gold-d);
+  }
+  .btn-gold:hover { background: var(--va-gold-d); color: var(--va-cream); }
+  .btn-choice {
+    background: var(--va-cream);
+    color: var(--va-text);
+    border: 2px solid var(--va-line);
+  }
+  .btn-choice:hover {
+    border-color: var(--va-olive);
+    background: #fff;
+  }
+  .meter-bar { transition: width 0.6s ease-out; }
+  .fade-in { animation: fadeIn 0.4s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+  .preserve-newlines { white-space: pre-line; }
+  .scenario-image { max-height: 280px; max-width: 100%; height: auto; width: auto; margin: 0 auto; display: block; }
+  @media (min-width: 1024px) { .scenario-image { max-height: 460px; } }
+  .title-image    { max-height: 360px; max-width: 100%; height: auto; width: auto; margin: 0 auto; display: block; }
+  @media (min-width: 1024px) { .title-image    { max-height: 520px; } }
+</style>
+</head>
+<body>
+<div id="root">
+  <div style="max-width:640px;margin:80px auto;padding:24px;font-family:Georgia,serif;color:#2D2F1F;text-align:center;">
+    <div style="font-size:18px;margin-bottom:8px;">Loading the VA Game…</div>
+    <div style="font-size:13px;color:#666;">If this message stays for more than a few seconds, your browser may be blocking the React/Tailwind scripts loaded from unpkg.com. Try opening this page in Chrome, Safari, or Firefox with internet access.</div>
+  </div>
+</div>
+
+<script>
+  window.addEventListener('error', function(e){
+    var r = document.getElementById('root');
+    if (r) r.innerHTML = '<div style="max-width:720px;margin:40px auto;padding:20px;font-family:monospace;background:#fee;border:1px solid #c00;color:#900;border-radius:8px;"><b>Script error:</b><br>' + (e.message || e) + '<br><small>' + (e.filename || '') + ':' + (e.lineno || '') + '</small></div>';
+  });
+</script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useEffect } = React;
+
+// =============================================================================
+// All text below is verbatim from the VA Game Content.xlsx provided by the
+// project author. Original quirks preserved (e.g. "appartment", "you to go back
+// to school", "the doctors advice").
+// =============================================================================
+
+const START_SAVINGS = 4750;
+const START_DAYS = 0;
+const DAILY_SPENDING = 26;        // Reference burn rate from the spec.
+const NATIONAL_AVERAGE_DAYS = 273; // From the closing screen.
+
+const CHAPTERS = [
+  { id: 'welcome',         label: 'Welcome' },
+  { id: 'physical_health', label: 'Physical Health' },
+  { id: 'mental_health',   label: 'Mental Health' },
+  { id: 'disability',      label: 'Disability' },
+  { id: 'work_school',     label: 'Work & School' },
+  { id: 'end',             label: 'Results' }
+];
+
+const SCENARIOS = [
+  {
+    id: 'intro',
+    chapter: 'welcome',
+    type: 'info',
+    image: 'assets/01_intro.png',
+    headline: 'Can you make it in the VA?',
+    body: 'The process of obtaining military veteran benefits can be a challenge. Think you can do it?',
+    button: 'START',
+    isTitle: true
+  },
+  {
+    id: 'overview',
+    chapter: 'welcome',
+    type: 'info',
+    image: 'assets/02_overview.png',
+    headline: 'Welcome Home',
+    body: "You’re a veteran returning home from service overseas and are faced with getting back into civilian life. \n\nYou leave the military with your final paycheck, a minimal reimbursement for unused time-off, and a little savings, giving you $4,750. Depending on your choices, that should last for about 6 months (180 days).\n\nYou must find housing, begin the journey of obtaining your military veteran benefits, and decide what to do with the rest of your life.\n\nGood luck.",
+    button: 'CONTINUE'
+  },
+  {
+    id: 'housing',
+    chapter: 'welcome',
+    type: 'choice',
+    image: 'assets/03_housing.png',
+    body: "First things, first. You need housing. You are counting on using your VA benefits for living expenses once it starts, but it can take several months to process.\n\nYour parents have offered for you to stay with them for a few months to save money or you could rent an apartment for some well-deserved independence, even though it’s a significant expense.\n\nWhere do you prefer to live?",
+    choices: [
+      {
+        label: 'Live with your parents and save some money.',
+        outcomes: [
+          { body: "Your parents will let you stay with them, but they request assistance with groceries and utilities. Luckily, you won't have to pay the costs of rent.", savings: -78, days: 3 },
+          { body: "You recently rescued a dog, but your parents won't let you move in with any animals. Before moving in, you'll need to find a friend willing to take the dog.", savings: -520, days: 10 }
+        ]
+      },
+      {
+        label: 'Get an appartment and enjoy some independence.',
+        outcomes: [
+          { body: "You don't have a car and apartments located near public transportation are expensive. You can only afford 5 months of rent instead.", savings: -1092, days: 14 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'va_overview',
+    chapter: 'physical_health',
+    type: 'info',
+    image: 'assets/04_va-overview.png',
+    body: "Now that your living situation is taken care of, you need to seek assistance from your local U.S. Veterans Affairs Office. Unfortunately, you aren’t the only one requesting help. More than 700,000 veterans are currently waiting for help from one of the 58 VA regional offices. The VA claims the average wait time after a veteran files a claim is about 200 days. Fingers crossed, it doesn’t take that long for you...",
+    button: 'CONTINUE'
+  },
+  {
+    id: 'department_overview',
+    chapter: 'physical_health',
+    type: 'info',
+    image: 'assets/05_department-overview.png',
+    body: "To successfully get all of your veteran benefits, you will need to navigate your way through 3 different departments including:\n\n- Physical Health\n- Mental Health\n- Disability and Benefit Claims\n\nEach department can take vastly different amounts of time to complete that you sadly don’t have. ",
+    button: "Let’s get to it."
+  },
+  {
+    id: 'health_evaluation',
+    chapter: 'physical_health',
+    type: 'info',
+    image: 'assets/06_health-evaluation.png',
+    headline: 'Physical Health',
+    body: "The Department of Defense provided recommendations based on your outprocessing exams while you were being discharged, but the medical team you speak with at the VA says they'd like to reevaluate those results.",
+    button: 'CONTINUE'
+  },
+  {
+    id: 'health_choice',
+    chapter: 'physical_health',
+    type: 'choice',
+    image: 'assets/06_health-dispute.png',
+    body: "While waiting on your results, you overhear an argument between another veteran and the receptionist. \nThe veteran says the medical team you just met with misdiagnosed him and the Department of Defense's recommendations were more accurate. The receptionist calls your name shortly after,\nso you'll have to decide how to proceed.",
+    choices: [
+      {
+        label: 'Ask to see a different medical team.',
+        outcomes: [
+          { body: "Great news! You are able to see a different medical team. However, there are so many veterans waiting for assistance today that you are given a appointment for 9 a.m. tomorrow.", savings: -182, days: 7 },
+          { body: "The receptionist tells you that you'll have to come back in 2 to 4 weeks to meet with someone else, so it'll take some time. The VA will email you new appointment options.", savings: -728, days: 28 }
+        ]
+      },
+      {
+        label: 'Give your assigned medical team a chance.',
+        outcomes: [
+          { body: "The receptionist helps you immediately and your appointment goes smoothly so you can get to your mental health check-up more quickly.", savings: -182, days: 7 },
+          { body: "A lot of time has gone by and you never receive your results. You ask what happened, and the medical team says your results are still being processed for review. It will be at least another week.", savings: -1170, days: 45 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'mental_health',
+    chapter: 'mental_health',
+    type: 'choice',
+    image: 'assets/07_mental-evaluation.png',
+    headline: 'Mental Health',
+    body: "The Department of Defense evaluated your mental state and diagnosed you with posttraumatic stress disorder (PTSD). \n\nYour outprocessing doctor indicated on your medical record that seeking therapy and medication through the VA would be beneficial.\n\nWhat do you want to do?",
+    choices: [
+      {
+        label: 'Take the doctors advice to manage your PTSD.',
+        outcomes: [
+          { body: "Getting professional treatment was the right choice. You feel better mentally, and there are less reminders of the war.", savings: -546, days: 21 },
+          { body: "You have to relive some of the bad memories you'd rather forget. You knew this would be difficult, but you didn't know it would be this hard.", savings: -1170, days: 45 }
+        ]
+      },
+      {
+        label: 'Refuse the advice for medication or therapy.',
+        outcomes: [
+          { body: "Getting over this kind of trauma isn't easy, but you've always dealt with things internally. However, it will take more time without medication or therapy to get better.", savings: -780, days: 30 },
+          { body: "Without any type of treatment, your symptoms significantly worsen with time. ", savings: -1950, days: 60 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'disability_benefits',
+    chapter: 'disability',
+    type: 'info',
+    image: 'assets/08_disability-benefits-evaluation.png',
+    headline: 'Disability and Benefit Claims',
+    body: "During your training and service, you have sustained a number of injuries eligible for compensation.\n\nIt can be difficult to know what disability compensation you are eligible for and how your benefits are calculated.",
+    button: "Take the evaluation to find out how much compensation you’re eligible for."
+  },
+  {
+    id: 'disability_dispute',
+    chapter: 'disability',
+    type: 'choice',
+    image: 'assets/08_disability-benefits-results.png',
+    body: "The VA says you're only at 10 percent disability rating, but you feel like you should have a higher rating than that. \n\nYou can choose to dispute that evaluation or accept the rating they provided. \n\nWhat do you do?",
+    choices: [
+      {
+        label: 'DISPUTE THE RATING. YOU THINK YOU DESERVE A HIGHER RATING FOR YOUR DISABILITY CLAIM.',
+        outcomes: [
+          { body: "You were able to change your rating, but only to 15 percent and you lost a few extra days having to visit the VA again for paperwork.", savings: -130, days: 5 }
+        ]
+      },
+      {
+        label: "ACCEPT THE RATING. YOU DON'T HAVE TIME TO APPEAL IT AND YOU NEED BENEFITS TO KICK IN SOONER RATHER THAN LATER.",
+        outcomes: [
+          { body: "Because you settled for the low rating you miss out on possible additional benefits. You won't receive as much money as anticipated, so plan on a tighter budget than originally planned.", savings: -520, days: 20 },
+          { body: "You still receive some benefits from this rating and you have time to focus on other things since you're done with the VA process. Still, the budget is tighter than you'd hoped it would be.", savings: -26, days: 1 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'work',
+    chapter: 'work_school',
+    type: 'info',
+    image: 'assets/09_work.png',
+    body: "With all the preliminary steps completed at the VA. It’s probably best to find a job. There is no telling how long it will take for your final benefits approval. Without a college degree, it can be difficult to find a job that pays enough, but at this point you have to do, what you have to do. ",
+    button: 'CONTINUE'
+  },
+  {
+    id: 'va_appt',
+    chapter: 'work_school',
+    type: 'choice',
+    image: 'assets/09_work-decision.png',
+    body: "You have an 8:00 a.m. job interview scheduled, but you just received an email from the VA saying the appointment you've been waiting on for weeks will have to be at 8:30 a.m. the same day.\n\nFinalizing your disability claim is dependent on going to the appointment and you don't know if you'd hear from the VA again if you didn't show up.\n\nYou have to choose one or the other.",
+    choices: [
+      {
+        label: 'Go to the job interview.',
+        outcomes: [
+          { body: "You nailed the interview and got the job a few cities over. You should make a good amount of money even before you receive your benefits check, but now you have to deal with getting that new VA appointment.", savings: -546, days: 21 },
+          { body: "You didn't get the job, and now you have to wait even longer until your VA appointment can be rescheduled and you might not be able to get your benefits check in the time you need.", savings: -1170, days: 45 }
+        ]
+      },
+      {
+        label: 'Go to the VA appointment.',
+        outcomes: [
+          { body: "The employer you were interviewing with was understanding of your circumstances and moved your interview to tomorrow.", savings: -26, days: 1 },
+          { body: "The employers you were interviewing called you and said they needed the job filled quickly so they can't reschedule a time for you to interview. You lose a great job option.", savings: -546, days: 21 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'school',
+    chapter: 'work_school',
+    type: 'choice',
+    image: 'assets/10_school.png',
+    body: "On average, a college graduate makes, a 50 percent higher salary than those with a high school diploma only. If you to go back to school it may pay off in the future. However, you’re still waiting on your G.I. Bill to process and will have to choose between working part-time or racking up credit card debt to make ends meet.",
+    choices: [
+      {
+        label: 'Go back to school and live on credit.',
+        outcomes: [
+          { body: "You know you’ll have to pay for it later, but credit cards are helping for now.", savings: -1170, days: 45 },
+          { body: "You can only afford to pay the minimum monthly payment – barely – and your interest is building up.", savings: -2340, days: 60 }
+        ]
+      },
+      {
+        label: 'Keep working and continue to save.',
+        outcomes: [
+          { body: "Working a little more now and taking less classes means you’re able to start putting some money toward savings and tuition. ", savings: -182, days: 7 },
+          { body: "To make it to day classes, you’ll be working late nights at this job and you know it will affect you in school. ", savings: -780, days: 30 }
+        ]
+      }
+    ]
+  }
+];
+
+// ---- Helpers ----------------------------------------------------------------
+
+function pickOutcome(outcomes) {
+  // 50/50 random pick between Outcome 1 and Outcome 2.
+  // If only one outcome is provided, return it.
+  if (outcomes.length === 1) return outcomes[0];
+  return outcomes[Math.floor(Math.random() * outcomes.length)];
+}
+
+function chapterOfScenario(idx) {
+  if (idx < 0) return CHAPTERS[0].id;
+  if (idx >= SCENARIOS.length) return 'end';
+  return SCENARIOS[idx].chapter;
+}
+
+// ---- Components -------------------------------------------------------------
+
+function Meter({ label, value, max, color, isFund, isReversed }) {
+  // For Days (isReversed), bar grows from 0 toward NATIONAL_AVERAGE
+  const pct = isReversed
+    ? Math.max(0, Math.min(100, (value / max) * 100))
+    : Math.max(0, Math.min(100, (value / max) * 100));
+  const display = isFund
+    ? '$' + value.toLocaleString()
+    : value.toLocaleString();
+  return (
+    <div className="flex-1 min-w-[140px]">
+      <div className="flex justify-between text-xs sm:text-sm mb-1 sans">
+        <span className="font-semibold tracking-wide uppercase" style={{color: 'var(--va-olive)', letterSpacing: '0.08em'}}>{label}</span>
+        <span className="font-mono font-bold" style={{color: 'var(--va-olive)'}}>{display}{!isFund ? ' days' : ''}</span>
+      </div>
+      <div className="h-2.5 rounded-full" style={{background: 'rgba(45,47,31,0.12)'}}>
+        <div className="meter-bar h-full rounded-full" style={{width: `${pct}%`, background: color}} />
+      </div>
+    </div>
+  );
+}
+
+function ProgressStepper({ currentChapterIdx }) {
+  return (
+    <div className="flex items-start max-w-3xl mx-auto px-2">
+      {CHAPTERS.map((step, i) => {
+        const done = i < currentChapterIdx;
+        const active = i === currentChapterIdx;
+        return (
+          <React.Fragment key={step.id}>
+            <div className="flex flex-col items-center shrink-0 w-14 sm:w-20">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold sans transition`}
+                style={{
+                  background: active ? 'var(--va-gold)' : done ? 'var(--va-olive)' : 'rgba(45,47,31,0.18)',
+                  color: active ? 'var(--va-olive)' : done ? 'var(--va-cream)' : 'rgba(45,47,31,0.55)',
+                  boxShadow: active ? '0 0 0 4px rgba(230,206,47,0.30)' : 'none'
+                }}
+              >
+                {done ? '✓' : i + 1}
+              </div>
+              <span
+                className={`text-[10px] sm:text-xs sans mt-1 text-center whitespace-nowrap leading-tight`}
+                style={{
+                  color: active ? 'var(--va-olive)' : done ? 'var(--va-olive-2)' : 'rgba(45,47,31,0.45)',
+                  fontWeight: active ? 700 : done ? 500 : 400
+                }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < CHAPTERS.length - 1 && (
+              <div
+                className="flex-1 h-0.5 mt-[11px] mx-0.5 sm:mx-1 transition"
+                style={{background: done ? 'var(--va-olive)' : 'rgba(45,47,31,0.18)'}}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function Header({ savings, days, chapterIdx }) {
+  return (
+    <header className="sticky top-0 z-10 backdrop-blur shadow-sm border-b" style={{background: 'rgba(244,241,232,0.95)', borderColor: 'var(--va-line)'}}>
+      <div className="max-w-4xl mx-auto px-4 pt-3 pb-2 flex gap-6 items-center">
+        <Meter label="Savings" value={savings} max={START_SAVINGS} color="var(--va-green)" isFund />
+        <Meter label="Days" value={days} max={NATIONAL_AVERAGE_DAYS} color="var(--va-amber)" isReversed />
+      </div>
+      <div className="border-t py-2.5" style={{borderColor: 'var(--va-line)'}}>
+        <ProgressStepper currentChapterIdx={chapterIdx} />
+      </div>
+    </header>
+  );
+}
+
+function PrimaryButton({ children, onClick, variant = 'primary' }) {
+  const cls = variant === 'gold' ? 'btn-gold' : 'btn-primary';
+  return (
+    <button
+      onClick={onClick}
+      className={`${cls} sans px-7 py-3 rounded-full font-semibold tracking-wider uppercase text-sm shadow hover:shadow-lg transition`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ---- Screens ----------------------------------------------------------------
+
+function TitleScreen({ scenario, onContinue }) {
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-10 sm:py-16 lg:py-20 text-center fade-in">
+      <img src={scenario.image} alt="" className="title-image mb-6 sm:mb-8" />
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4" style={{color: 'var(--va-olive)', fontFamily: 'inherit'}}>
+        {scenario.headline}
+      </h1>
+      <p className="text-base sm:text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed" style={{color: 'var(--va-olive-2)'}}>
+        {scenario.body}
+      </p>
+      <PrimaryButton variant="gold" onClick={onContinue}>{scenario.button}</PrimaryButton>
+    </div>
+  );
+}
+
+function InfoScreen({ scenario, onContinue }) {
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:py-10 fade-in">
+      <div className="rounded-2xl shadow-sm border p-6 sm:p-10" style={{borderColor: 'var(--va-line)', background: 'var(--va-cream)'}}>
+        <div className="grid lg:grid-cols-[5fr_6fr] gap-8 lg:gap-12 items-center">
+          <div className="flex justify-center">
+            <img src={scenario.image} alt="" className="scenario-image" />
+          </div>
+          <div>
+            {scenario.headline && (
+              <h1 className="text-3xl sm:text-4xl font-bold mb-5" style={{color: 'var(--va-olive)'}}>
+                {scenario.headline}
+              </h1>
+            )}
+            <p className="text-base sm:text-lg leading-relaxed preserve-newlines mb-8" style={{color: 'var(--va-text)'}}>
+              {scenario.body}
+            </p>
+            <div>
+              <PrimaryButton onClick={onContinue}>{scenario.button}</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChoiceScreen({ scenario, onChoose }) {
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:py-10 fade-in">
+      <div className="rounded-2xl shadow-sm border p-6 sm:p-10" style={{borderColor: 'var(--va-line)', background: 'var(--va-cream)'}}>
+        <div className="grid lg:grid-cols-[5fr_6fr] gap-8 lg:gap-12 items-center">
+          <div className="flex justify-center">
+            <img src={scenario.image} alt="" className="scenario-image" />
+          </div>
+          <div>
+            {scenario.headline && (
+              <h1 className="text-3xl sm:text-4xl font-bold mb-5" style={{color: 'var(--va-olive)'}}>
+                {scenario.headline}
+              </h1>
+            )}
+            <p className="text-base sm:text-lg leading-relaxed preserve-newlines mb-6" style={{color: 'var(--va-text)'}}>
+              {scenario.body}
+            </p>
+            <div className="grid gap-3">
+              {scenario.choices.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => onChoose(c)}
+                  className="btn-choice text-left px-5 py-4 rounded-xl sans font-medium transition leading-snug"
+                >
+                  <span className="inline-block sans uppercase tracking-widest text-[10px] font-bold mr-2 align-middle" style={{color: 'var(--va-gold-d)'}}>
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeScreen({ scenario, choice, outcome, onContinue }) {
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-10 fade-in">
+      <div className="rounded-2xl shadow-sm border p-6 sm:p-10" style={{borderColor: 'var(--va-line)', background: 'var(--va-cream)'}}>
+        <div className="grid lg:grid-cols-[3fr_2fr] gap-8 lg:gap-12">
+          <div>
+            <div className="sans uppercase tracking-[0.2em] text-xs font-semibold mb-3" style={{color: 'var(--va-amber-2)'}}>
+              You chose
+            </div>
+            <p className="italic text-base sm:text-lg mb-6" style={{color: 'var(--va-olive-2)'}}>
+              "{choice.label}"
+            </p>
+            <div className="border-t pt-5 mb-6 lg:mb-0" style={{borderColor: 'var(--va-line)'}}>
+              <p className="text-base sm:text-lg leading-relaxed preserve-newlines" style={{color: 'var(--va-text)'}}>
+                {outcome.body}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <div className="rounded-lg p-5 sans" style={{background: 'rgba(45,47,31,0.06)'}}>
+              <div className="text-xs uppercase tracking-widest font-semibold mb-3" style={{color: 'var(--va-olive-2)'}}>Impact</div>
+              <div className="flex items-center justify-between text-sm mb-2 pb-2 border-b" style={{borderColor: 'var(--va-line)'}}>
+                <span style={{color: 'var(--va-olive-2)'}}>Savings</span>
+                <span className="font-mono font-bold text-base" style={{color: outcome.savings < 0 ? 'var(--va-red)' : 'var(--va-green)'}}>
+                  {outcome.savings < 0 ? '▼' : '▲'} ${Math.abs(outcome.savings).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span style={{color: 'var(--va-olive-2)'}}>Days</span>
+                <span className="font-mono font-bold text-base" style={{color: outcome.days > 0 ? 'var(--va-amber)' : 'var(--va-green)'}}>
+                  {outcome.days > 0 ? '▲' : '▼'} {Math.abs(outcome.days)} day{Math.abs(outcome.days) === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+            <div className="lg:mt-auto">
+              <PrimaryButton onClick={onContinue}>Continue</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinalScreen({ savings, days, onReset }) {
+  const beatAverage = days < NATIONAL_AVERAGE_DAYS;
+  const ranOutOfMoney = savings <= 0;
+  const verdict = ranOutOfMoney
+    ? "You ran out of money before your benefits came through. The VA process is unforgiving when your savings dry up."
+    : beatAverage
+      ? "You navigated the system faster than the national average. Your savings will tide you over until your benefits arrive."
+      : "Your VA journey took longer than the national average — but you made it through with your savings intact.";
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-10 fade-in">
+      <div className="rounded-2xl shadow-sm border p-6 sm:p-10" style={{borderColor: 'var(--va-line)', background: 'var(--va-cream)'}}>
+        <div className="sans uppercase tracking-[0.2em] text-xs font-semibold mb-3 text-center" style={{color: 'var(--va-amber-2)'}}>
+          End of your VA Journey
+        </div>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-5 text-center" style={{color: 'var(--va-olive)'}}>
+          Did your choices speed things up?
+        </h1>
+
+        <p className="text-base sm:text-lg leading-relaxed mb-8 text-center max-w-2xl mx-auto" style={{color: 'var(--va-text)'}}>
+          The Veterans Benefits Administration reports the average wait to process a veteran's benefits is <strong>{NATIONAL_AVERAGE_DAYS} days</strong>.
+        </p>
+
+        <div className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto mb-8 sans">
+          <div className="rounded-lg p-6 text-center" style={{background: 'rgba(74,107,58,0.10)'}}>
+            <div className="text-xs uppercase tracking-widest mb-2" style={{color: 'var(--va-olive-2)'}}>Savings remaining</div>
+            <div className="text-4xl lg:text-5xl font-bold font-mono" style={{color: savings <= 0 ? 'var(--va-red)' : 'var(--va-green)'}}>
+              ${savings.toLocaleString()}
+            </div>
+          </div>
+          <div className="rounded-lg p-6 text-center" style={{background: 'rgba(201,122,27,0.10)'}}>
+            <div className="text-xs uppercase tracking-widest mb-2" style={{color: 'var(--va-olive-2)'}}>Days spent</div>
+            <div className="text-4xl lg:text-5xl font-bold font-mono" style={{color: 'var(--va-amber-2)'}}>
+              {days}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg p-5 mb-8 text-center max-w-2xl mx-auto" style={{background: beatAverage && !ranOutOfMoney ? 'rgba(230,206,47,0.20)' : 'rgba(45,47,31,0.06)'}}>
+          <div className="text-base sm:text-lg italic" style={{color: 'var(--va-text)'}}>
+            {verdict}
+          </div>
+          <div className="text-sm sans mt-3" style={{color: 'var(--va-olive-2)'}}>
+            {ranOutOfMoney
+              ? null
+              : beatAverage
+                ? <>You finished <strong>{NATIONAL_AVERAGE_DAYS - days}</strong> days under the national average.</>
+                : <>You finished <strong>{days - NATIONAL_AVERAGE_DAYS}</strong> days over the national average.</>
+            }
+          </div>
+        </div>
+
+        <div className="flex justify-center gap-3 flex-wrap">
+          <PrimaryButton variant="gold" onClick={onReset}>PLAY AGAIN</PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- App --------------------------------------------------------------------
+
+function App() {
+  const [idx, setIdx] = useState(0);
+  const [chosenOutcome, setChosenOutcome] = useState(null);
+  const [chosenLabel, setChosenLabel] = useState(null);
+  const [savings, setSavings] = useState(START_SAVINGS);
+  const [days, setDays] = useState(START_DAYS);
+  const [phase, setPhase] = useState('reading'); // 'reading' | 'outcome' | 'end'
+
+  // Scroll to top on every scene change so long bodies don't load mid-scroll.
+  useEffect(() => {
+    window.scrollTo({top: 0, left: 0, behavior: 'instant'});
+  }, [idx, phase]);
+
+  const scenario = SCENARIOS[idx];
+  const chapterId = phase === 'end' ? 'end' : (scenario ? scenario.chapter : 'end');
+  const chapterIdx = CHAPTERS.findIndex(c => c.id === chapterId);
+
+  function handleInfoContinue() {
+    if (idx >= SCENARIOS.length - 1) {
+      setPhase('end');
+    } else {
+      setIdx(idx + 1);
+      setPhase('reading');
+    }
+  }
+
+  function handleChoose(choice) {
+    const outcome = pickOutcome(choice.outcomes);
+    setSavings(s => s + outcome.savings);
+    setDays(d => d + outcome.days);
+    setChosenOutcome(outcome);
+    setChosenLabel(choice.label);
+    setPhase('outcome');
+  }
+
+  function handleOutcomeContinue() {
+    setChosenOutcome(null);
+    setChosenLabel(null);
+    if (idx >= SCENARIOS.length - 1) {
+      setPhase('end');
+    } else {
+      setIdx(idx + 1);
+      setPhase('reading');
+    }
+  }
+
+  function reset() {
+    setIdx(0);
+    setChosenOutcome(null);
+    setChosenLabel(null);
+    setSavings(START_SAVINGS);
+    setDays(START_DAYS);
+    setPhase('reading');
+  }
+
+  // Hide the header (meters + stepper) only on the title slide for cinematic effect.
+  const isTitle = phase === 'reading' && scenario && scenario.isTitle;
+
+  return (
+    <div className="min-h-screen">
+      {!isTitle && (
+        <Header savings={savings} days={days} chapterIdx={chapterIdx} />
+      )}
+      {phase === 'reading' && scenario && scenario.isTitle && (
+        <TitleScreen scenario={scenario} onContinue={handleInfoContinue} />
+      )}
+      {phase === 'reading' && scenario && !scenario.isTitle && scenario.type === 'info' && (
+        <InfoScreen scenario={scenario} onContinue={handleInfoContinue} />
+      )}
+      {phase === 'reading' && scenario && !scenario.isTitle && scenario.type === 'choice' && (
+        <ChoiceScreen scenario={scenario} onChoose={handleChoose} />
+      )}
+      {phase === 'outcome' && chosenOutcome && (
+        <OutcomeScreen
+          scenario={scenario}
+          choice={{label: chosenLabel}}
+          outcome={chosenOutcome}
+          onContinue={handleOutcomeContinue}
+        />
+      )}
+      {phase === 'end' && (
+        <FinalScreen savings={savings} days={days} onReset={reset} />
+      )}
+      <footer className="text-center text-xs sans py-6" style={{color: 'rgba(45,47,31,0.55)'}}>
+        Can you make it in the VA? &middot; Prototype rebuild from the original Captivate project
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
 </html>
